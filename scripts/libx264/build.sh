@@ -10,6 +10,7 @@ case $ANDROID_ABI in
     X264_ADDITIONAL_FLAGS=--disable-asm
     ;;
   x86_64)
+    X264_ADDITIONAL_FLAGS=--disable-asm
     X264_AS=${NASM_EXECUTABLE}
     ;;
 esac
