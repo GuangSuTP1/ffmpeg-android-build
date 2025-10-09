@@ -62,7 +62,7 @@ EXTRA_LDFLAGS="-Wl,-z,max-page-size=16384 $DEP_LD_FLAGS"
   --nm=${FAM_NM} \
   --ranlib=${FAM_RANLIB} \
   --strip=${FAM_STRIP} \
-  --extra-cflags="-O3 -fPIC -lm -lz -landroid $DEP_CFLAGS" \
+  --extra-cflags="-O3 -fPIC -lm -lz -landroid -lmediandk $DEP_CFLAGS" \
   --extra-ldflags="$EXTRA_LDFLAGS" \
   --disable-shared \
   --enable-static \
@@ -203,7 +203,7 @@ ${FAM_CC} -shared -o ${STATIC_LIB_DIR}/${OUTPUT_SO_NAME} \
   ${STATIC_LIB_DIR}/libswresample.a \
   ${STATIC_LIB_DIR}/libavformat.a \
   ${STATIC_LIB_DIR}/libswscale.a \
-  -Wl,--no-whole-archive -lm -lz -landroid
+  -Wl,--no-whole-archive -lm -lz -landroid -lmediandk
 
 OUTPUT_CONFIG_HEADERS_DIR=${OUTPUT_DIR}/include/${ANDROID_ABI}
 mkdir -p ${OUTPUT_CONFIG_HEADERS_DIR}
