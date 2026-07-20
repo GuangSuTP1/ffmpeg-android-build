@@ -42,11 +42,11 @@ jobs:
       - name: Make script executable
         run: chmod +x ffmpeg-android-maker.sh
 
-      - name: Build FFmpeg for arm64-v8a
-        run: ./ffmpeg-android-maker.sh -abis=arm64-v8a
+      - name: Build FFmpeg for arm64-v8a 
+        run: ./ffmpeg-android-maker.sh -abis=arm64-v8a,armeabi-v7a --enable-all-free --enable-all-gpl
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ffmpeg-android-arm64
-          path: .
+          path: build
