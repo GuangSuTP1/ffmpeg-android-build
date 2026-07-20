@@ -2,7 +2,6 @@
 
 case $ANDROID_ABI in
     x86)
-        # Disabling assembler optimizations, because they have text relocations
         EXTRA_BUILD_CONFIGURATION_FLAGS="$EXTRA_BUILD_CONFIGURATION_FLAGS --disable-neon --disable-asm"
         ;;
     x86_64)
@@ -20,7 +19,6 @@ if [ "$FFMPEG_GPL_ENABLED" = true ]; then
     EXTRA_BUILD_CONFIGURATION_FLAGS="$EXTRA_BUILD_CONFIGURATION_FLAGS --enable-gpl"
 fi
 
-# Preparing flags for enabling requested libraries
 ADDITIONAL_COMPONENTS=
 for LIBARY_NAME in ${FFMPEG_EXTERNAL_LIBRARIES[@]}; do
     ADDITIONAL_COMPONENTS+=" --enable-$LIBARY_NAME"
@@ -38,12 +36,8 @@ for LIBARY_NAME in ${FFMPEG_EXTERNAL_LIBRARIES[@]}; do
 done
 echo ADDITIONAL_COMPONENTS=${ADDITIONAL_COMPONENTS}
 
-# Referencing dependencies without pkgconfig
 DEP_CFLAGS="-I${BUILD_DIR_EXTERNAL}/${ANDROID_ABI}/include"
 DEP_LD_FLAGS="-L${BUILD_DIR_EXTERNAL}/${ANDROID_ABI}/lib $FFMPEG_EXTRA_LD_FLAGS"
-
-# Android 15 with 16 kb page size support
-# https://developer.android.com/guide/practices/page-sizes#compile-r27
 EXTRA_LDFLAGS="-Wl,-z,max-page-size=16384 $DEP_LD_FLAGS"
 
 ./configure \
@@ -95,7 +89,8 @@ done
 
 echo EXTERNAL_STATIC_LIB_PATH=${EXTERNAL_STATIC_LIB_PATH}
 
-${FAM_CC} -shared -o ${STATIC_LIB_DIR}/${OUTPUT_SO_NAME} \
+# 关键修改：添加 -Wl,--allow-multiple-definition 以允许重复符号
+${FAM_CC} -shared -Wl,--allow-multiple-definition -o ${STATIC_LIB_DIR}/${OUTPUT_SO_NAME} \
     -Wl,--whole-archive \
     ${EXTERNAL_STATIC_LIB_PATH} \
     ${STATIC_LIB_DIR}/libavdevice.a \
@@ -112,6 +107,7 @@ OUTPUT_CONFIG_HEADERS_DIR=${OUTPUT_DIR}/include/${ANDROID_ABI}
 mkdir -p ${OUTPUT_CONFIG_HEADERS_DIR}
 cp config.h ${OUTPUT_CONFIG_HEADERS_DIR}/config.h
 
+${FAM_STRIP} --strip-unneeded ${STATIC_LIB_DIR}/${OUTPUT_SO_NAME}
 ${FAM_STRIP} --strip-unneeded ${STATIC_LIB_DIR}/${OUTPUT_SO_NAME}  --enable-decoder=ac3 \
   --enable-decoder=vp8 \
   --enable-decoder=vorbis \
