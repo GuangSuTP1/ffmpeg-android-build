@@ -89,7 +89,7 @@ done
 
 echo EXTERNAL_STATIC_LIB_PATH=${EXTERNAL_STATIC_LIB_PATH}
 
-# 关键修改：添加 -Wl,--allow-multiple-definition 以允许重复符号
+# 关键修改：添加 -Wl,--allow-multiple-definition 以允许重复符号（如你之前所写）
 ${FAM_CC} -shared -Wl,--allow-multiple-definition -o ${STATIC_LIB_DIR}/${OUTPUT_SO_NAME} \
     -Wl,--whole-archive \
     ${EXTERNAL_STATIC_LIB_PATH} \
@@ -107,101 +107,5 @@ OUTPUT_CONFIG_HEADERS_DIR=${OUTPUT_DIR}/include/${ANDROID_ABI}
 mkdir -p ${OUTPUT_CONFIG_HEADERS_DIR}
 cp config.h ${OUTPUT_CONFIG_HEADERS_DIR}/config.h
 
+# 只执行一次 strip，不带 ffmpeg configure/enable-* 参数
 ${FAM_STRIP} --strip-unneeded ${STATIC_LIB_DIR}/${OUTPUT_SO_NAME}
-${FAM_STRIP} --strip-unneeded ${STATIC_LIB_DIR}/${OUTPUT_SO_NAME}  --enable-decoder=ac3 \
-  --enable-decoder=vp8 \
-  --enable-decoder=vorbis \
-  --enable-decoder=mpeg2video \
-  --enable-decoder=mp2 \
-  --enable-decoder=indeo4 \
-  --enable-decoder=amrnb \
-  --enable-decoder=pcm_u8 \
-  --disable-muxers \
-  --enable-muxer=mov \
-  --enable-muxer=mp4 \
-  --enable-muxer=image2 \
-  --enable-muxer=mp3 \
-  --enable-muxer=ipod \
-  --enable-muxer=gif \
-  --disable-encoders \
-  --enable-encoder=aac \
-  --enable-encoder=png \
-  --enable-encoder=mjpeg \
-  --enable-encoder=gif \
-  --enable-swscale \
-  --disable-filters \
-  --enable-filter=crop \
-  --enable-filter=scale \
-  --enable-filter=afade \
-  --enable-filter=atempo \
-  --enable-filter=copy \
-  --enable-filter=aformat \
-  --enable-filter=overlay \
-  --enable-filter=vflip \
-  --enable-filter=hflip \
-  --enable-filter=transpose \
-  --enable-filter=volume \
-  --enable-filter=rotate \
-  --enable-filter=apad \
-  --enable-filter=amerge \
-  --enable-filter=aresample \
-  --enable-filter=setpts \
-  --enable-filter=fps \
-  --enable-filter=palettegen \
-  --enable-filter=paletteuse \
-  --enable-filter=trim \
-  --enable-filter=null \
-  --enable-filter=overlay \
-  --enable-filter=format \
-  --enable-filter=atrim \
-  --enable-filter=split \
-  --enable-filter=amix \
-  --enable-filter=anull \
-  --enable-filter=anullsrc \
-  --enable-filter=adelay \
-  --enable-filter=aloop \
-  --enable-filter=concat \
-  --enable-zlib \
-  --enable-jni \
-  --enable-nonfree \
-  --enable-mediacodec \
-  --enable-decoder=h264_mediacodec \
-  --enable-decoder=hevc_mediacodec \
-  --enable-encoder=h264_mediacodec \
-  --enable-encoder=hevc_mediacodec \
-  --enable-version3 \
-  --pkg-config=${PKG_CONFIG_EXECUTABLE} \
-  ${EXTRA_BUILD_CONFIGURATION_FLAGS} \
-  ${ADDITIONAL_COMPONENTS} || exit 1
-
-${MAKE_EXECUTABLE} clean
-${MAKE_EXECUTABLE} -j${HOST_NPROC}
-${MAKE_EXECUTABLE} install
-
-export STATIC_LIB_DIR=${BUILD_DIR_FFMPEG}/${ANDROID_ABI}/lib
-export EXTERNAL_LIB_DIR=${INSTALL_DIR}/lib
-echo STATIC_LIB_DIR=${STATIC_LIB_DIR}
-echo EXTERNAL_LIB_DIR=${EXTERNAL_LIB_DIR}
-echo FAM_CC=${FAM_CC}
-
-EXTERNAL_STATIC_LIB_PATH=""
-for LIBARY_NAME in ${FFMPEG_EXTERNAL_LIBRARIES[@]}; do
-  EXTERNAL_STATIC_LIB_PATH+="${EXTERNAL_LIB_DIR}/${LIBARY_NAME}.a "
-done
-echo EXTERNAL_STATIC_LIB_PATH=${EXTERNAL_STATIC_LIB_PATH}
-
-${FAM_CC} -shared -o ${STATIC_LIB_DIR}/${OUTPUT_SO_NAME} \
-  -Wl,--whole-archive \
-  ${EXTERNAL_STATIC_LIB_PATH} \
-  ${STATIC_LIB_DIR}/libavdevice.a \
-  ${STATIC_LIB_DIR}/libavutil.a \
-  ${STATIC_LIB_DIR}/libavcodec.a \
-  ${STATIC_LIB_DIR}/libavfilter.a \
-  ${STATIC_LIB_DIR}/libswresample.a \
-  ${STATIC_LIB_DIR}/libavformat.a \
-  ${STATIC_LIB_DIR}/libswscale.a \
-  -Wl,--no-whole-archive -lm -lz -landroid -lmediandk
-
-OUTPUT_CONFIG_HEADERS_DIR=${OUTPUT_DIR}/include/${ANDROID_ABI}
-mkdir -p ${OUTPUT_CONFIG_HEADERS_DIR}
-cp config.h ${OUTPUT_CONFIG_HEADERS_DIR}/config.h
