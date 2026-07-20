@@ -2,43 +2,51 @@ name: Build FFmpeg Android (arm64-v8a)
 
 on:
   push:
-    branches: [ "main", "master" ]
-  workflow_dispatch:
+    branches: [ "master", "main" ]
+  workflow_dispatch:   # 支持手动触发
+
+env:
+  # Android SDK 相关路径（GitHub Actions 预置）
+  ANDROID_HOME: /usr/local/lib/android/sdk
+  ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+  ANDROID_SDK_HOME: /usr/local/lib/android/sdk   # 脚本要求
+  ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/25.2.9519653   # 明确指定
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
 
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-    - name: Install NDK
-      run: |
-        echo "y" | sdkmanager "ndk;25.2.9519653"
-        echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
+      - name: Install NDK (r25c)
+        run: |
+          echo "y" | sdkmanager "ndk;25.2.9519653"
+          # 确认 NDK 路径
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y make cmake pkg-config
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y make cmake pkg-config
 
-    - name: Make script executable
-      run: chmod +x ffmpeg-android-maker.sh
+      - name: Make script executable
+        run: chmod +x ffmpeg-android-maker.sh
 
-    - name: Build FFmpeg (arm64-v8a)
-      run: ./ffmpeg-android-maker.sh -abis=arm64-v8a
+      - name: Build FFmpeg for arm64-v8a
+        run: ./ffmpeg-android-maker.sh -abis=arm64-v8a
 
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: ffmpeg-android-arm64
-        path: output/
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-android-arm64
+          path: output/
