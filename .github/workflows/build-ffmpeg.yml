@@ -52,9 +52,27 @@ jobs:
           wget https://downloads.sourceforge.net/project/lame/lame/3.100/lame-3.100.tar.gz
           tar -xzf lame-3.100.tar.gz
           cd lame-3.100
-          ./configure --host=aarch64-linux-android \
-            --prefix=${{ github.workspace }}/build/external/arm64-v8a \
-            --disable-shared --enable-static
+
+          # Android API level for clang wrapper
+          API=21
+          TOOLCHAIN="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
+
+          # Use NDK clang toolchain so configure detects correct target (aarch64)
+          export CC="${TOOLCHAIN}/aarch64-linux-android${API}-clang"
+          export AR="${TOOLCHAIN}/llvm-ar"
+          export RANLIB="${TOOLCHAIN}/llvm-ranlib"
+          export NM="${TOOLCHAIN}/llvm-nm"
+          export STRIP="${TOOLCHAIN}/llvm-strip"
+          export CFLAGS="--sysroot=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/sysroot -O2 -fPIC"
+
+          ./configure \
+          --host=aarch64-linux-android \
+          --prefix=${{ github.workspace }}/build/external/arm64-v8a \
+          --with-sysroot=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/sysroot \
+          --disable-shared \
+          --enable-static \
+          --disable-asm
+
           make -j$(nproc)
           make install
 
