@@ -15,11 +15,15 @@ case $ANDROID_ABI in
         ;;
 esac
 
-if [ "$FFMPEG_GPL_ENABLED" = true ]; then
-    EXTRA_BUILD_CONFIGURATION_FLAGS="$EXTRA_BUILD_CONFIGURATION_FLAGS --enable-gpl"
-fi
+# 强制启用 GPL（无论环境变量如何）
+EXTRA_BUILD_CONFIGURATION_FLAGS="$EXTRA_BUILD_CONFIGURATION_FLAGS --enable-gpl"
 
-ADDITIONAL_COMPONENTS=
+# 外部库列表（从环境变量读取，用于循环添加额外的库）
+ADDITIONAL_COMPONENTS=""
+# 默认强制开启的库（后面会在 configure 中硬编码，这里保留空白以避免重复）
+# 我们将在 configure 中直接硬编码所有常见库
+
+# 但是为了兼容，如果用户通过环境变量设置了额外的库，我们仍然处理
 for LIBARY_NAME in ${FFMPEG_EXTERNAL_LIBRARIES[@]}; do
     ADDITIONAL_COMPONENTS+=" --enable-$LIBARY_NAME"
     case $LIBARY_NAME in
@@ -29,13 +33,44 @@ for LIBARY_NAME in ${FFMPEG_EXTERNAL_LIBRARIES[@]}; do
         libmp3lame)
             ADDITIONAL_COMPONENTS+=" --enable-encoder=libmp3lame"
             ;;
+        libx265)
+            ADDITIONAL_COMPONENTS+=" --enable-encoder=libx265"
+            ;;
+        libopus)
+            ADDITIONAL_COMPONENTS+=" --enable-encoder=libopus --enable-decoder=libopus"
+            ;;
+        libvorbis)
+            ADDITIONAL_COMPONENTS+=" --enable-encoder=libvorbis --enable-decoder=libvorbis"
+            ;;
+        libfdk_aac)
+            ADDITIONAL_COMPONENTS+=" --enable-encoder=libfdk_aac --enable-decoder=libfdk_aac"
+            ;;
+        libvpx)
+            ADDITIONAL_COMPONENTS+=" --enable-encoder=libvpx_vp8 --enable-encoder=libvpx_vp9 --enable-decoder=libvpx_vp8 --enable-decoder=libvpx_vp9"
+            ;;
+        libfreetype)
+            ADDITIONAL_COMPONENTS+=" --enable-libfreetype"
+            ;;
+        libass)
+            ADDITIONAL_COMPONENTS+=" --enable-libass"
+            ;;
+        libfontconfig)
+            ADDITIONAL_COMPONENTS+=" --enable-libfontconfig"
+            ;;
+        libfribidi)
+            ADDITIONAL_COMPONENTS+=" --enable-libfribidi"
+            ;;
+        libsrt)
+            ADDITIONAL_COMPONENTS+=" --enable-libsrt"
+            ;;
         *)
             echo "Unknown ADDITIONAL_COMPONENTS LIBARY_NAME: $LIBARY_NAME"
             ;;
     esac
 done
-echo ADDITIONAL_COMPONENTS=${ADDITIONAL_COMPONENTS}
+echo "ADDITIONAL_COMPONENTS=${ADDITIONAL_COMPONENTS}"
 
+# 依赖路径
 DEP_CFLAGS="-I${BUILD_DIR_EXTERNAL}/${ANDROID_ABI}/include"
 DEP_LD_FLAGS="-L${BUILD_DIR_EXTERNAL}/${ANDROID_ABI}/lib $FFMPEG_EXTRA_LD_FLAGS"
 EXTRA_LDFLAGS="-Wl,-z,max-page-size=16384 $DEP_LD_FLAGS"
@@ -68,6 +103,20 @@ EXTRA_LDFLAGS="-Wl,-z,max-page-size=16384 $DEP_LD_FLAGS"
     --enable-encoder=hevc_mediacodec \
     --enable-version3 \
     --pkg-config=${PKG_CONFIG_EXECUTABLE} \
+    \
+    --enable-libmp3lame --enable-encoder=libmp3lame \
+    --enable-libx264 --enable-encoder=libx264 \
+    --enable-libx265 --enable-encoder=libx265 \
+    --enable-libvpx --enable-encoder=libvpx_vp8 --enable-encoder=libvpx_vp9 --enable-decoder=libvpx_vp8 --enable-decoder=libvpx_vp9 \
+    --enable-libopus --enable-encoder=libopus --enable-decoder=libopus \
+    --enable-libvorbis --enable-encoder=libvorbis --enable-decoder=libvorbis \
+    --enable-libfdk_aac --enable-encoder=libfdk_aac --enable-decoder=libfdk_aac \
+    --enable-libfreetype \
+    --enable-libass \
+    --enable-libfontconfig \
+    --enable-libfribidi \
+    --enable-libsrt \
+    \
     ${EXTRA_BUILD_CONFIGURATION_FLAGS} \
     ${ADDITIONAL_COMPONENTS} || exit 1
 
@@ -89,7 +138,7 @@ done
 
 echo EXTERNAL_STATIC_LIB_PATH=${EXTERNAL_STATIC_LIB_PATH}
 
-# 关键修改：添加 -Wl,--allow-multiple-definition 以允许重复符号（如你之前所写）
+# 链接为单个共享库（保留原有逻辑）
 ${FAM_CC} -shared -Wl,--allow-multiple-definition -o ${STATIC_LIB_DIR}/${OUTPUT_SO_NAME} \
     -Wl,--whole-archive \
     ${EXTERNAL_STATIC_LIB_PATH} \
@@ -107,5 +156,10 @@ OUTPUT_CONFIG_HEADERS_DIR=${OUTPUT_DIR}/include/${ANDROID_ABI}
 mkdir -p ${OUTPUT_CONFIG_HEADERS_DIR}
 cp config.h ${OUTPUT_CONFIG_HEADERS_DIR}/config.h
 
-# 只执行一次 strip，不带 ffmpeg configure/enable-* 参数
-${FAM_STRIP} --strip-unneeded ${STATIC_LIB_DIR}/${OUTPUT_SO_NAME}
+# 复制可执行文件到 output/bin 目录（如果需要）
+mkdir -p ${OUTPUT_DIR}/bin/${ANDROID_ABI}
+cp ${BUILD_DIR_FFMPEG}/${ANDROID_ABI}/bin/ffmpeg ${OUTPUT_DIR}/bin/${ANDROID_ABI}/ 2>/dev/null || true
+cp ${BUILD_DIR_FFMPEG}/${ANDROID_ABI}/bin/ffprobe ${OUTPUT_DIR}/bin/${ANDROID_ABI}/ 2>/dev/null || true
+
+# strip（忽略错误）
+${FAM_STRIP} --strip-unneeded ${STATIC_LIB_DIR}/${OUTPUT_SO_NAME} || true
