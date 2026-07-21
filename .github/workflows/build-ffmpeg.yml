@@ -131,25 +131,52 @@ jobs:
 
           # x265 的构建目录通常在 build/linux
           if [ -d x265_src/build/linux ]; then
-          cd x265_src/build/linux
-          SOURCE_PATH=../../source
+            cd x265_src/build/linux
+            SOURCE_PATH=../../source
           elif [ -d x265_src/build ]; then
-          cd x265_src/build
-          SOURCE_PATH=../source
+            cd x265_src/build
+            SOURCE_PATH=../source
           else
             echo "Cannot find x265 build directory; listing /tmp/x265_src:"; ls -la x265_src; exit 1
           fi
 
+          API=21
+          TOOLCHAIN="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
+
+          export CC="${TOOLCHAIN}/aarch64-linux-android${API}-clang"
+          export CXX="${TOOLCHAIN}/aarch64-linux-android${API}-clang++"
+          export AR="${TOOLCHAIN}/llvm-ar"
+          export RANLIB="${TOOLCHAIN}/llvm-ranlib"
+          export NM="${TOOLCHAIN}/llvm-nm"
+          export STRIP="${TOOLCHAIN}/llvm-strip"
+
+          # 使用 clang 作为汇编器，强制 CMake 使用 clang 的 integrated assembler
+          export AS="$CC"
+
+          # Diagnostic（可选）：确认使用的工具链（有助于调试）
+          echo "Using CC=$CC"
+          $CC --version || true
+          echo "Using AS=$AS"
+          $AS --version || true
+          ls -ld $TOOLCHAIN || true
+
           cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
-          -DANDROID_ABI=arm64-v8a \
-          -DANDROID_PLATFORM=android-21 \
-          -DENABLE_SHARED=OFF \
-          -DENABLE_CLI=OFF \
-          -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build/external/arm64-v8a \
-          $SOURCE_PATH
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-21 \
+            -DENABLE_SHARED=OFF \
+            -DENABLE_CLI=OFF \
+            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build/external/arm64-v8a \
+            -DCMAKE_C_COMPILER="$CC" \
+            -DCMAKE_CXX_COMPILER="$CXX" \
+            -DCMAKE_ASM_COMPILER="$CC" \
+            $SOURCE_PATH
 
           make -j$(nproc)
           make install
+
+          # 如果上面仍然因汇编器不兼容失败，可尝试禁用 x265 汇编优化（降级但能过 CI）
+          # 例如将 cmake 命令改为：
+          # cmake ... -DCMAKE_ASM_COMPILER="$CC" -DENABLE_ASM=OFF $SOURCE_PATH
 
       - name: Build libopus
         run: |
