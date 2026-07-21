@@ -126,29 +126,28 @@ jobs:
       - name: Build libx265
         run: |
           cd /tmp
-          wget https://bitbucket.org/multicoreware/x265_git/downloads/x265_3.5.tar.gz
-          tar -xzf x265_3.5.tar.gz
-          cd x265_3.5/build/linux
-          cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
-            -DANDROID_ABI=arm64-v8a \
-            -DANDROID_PLATFORM=android-21 \
-            -DENABLE_SHARED=OFF \
-            -DENABLE_CLI=OFF \
-            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build/external/arm64-v8a \
-            ../../source
-          make -j$(nproc)
-          make install
+          # 使用 GitHub 上的 videolan/x265 仓库镜像来替代已失效的 Bitbucket tar 下载
+          git clone --depth 1 https://github.com/videolan/x265.git x265_src || { echo "git clone x265 failed"; exit 1; }
 
-      - name: Build libvpx
-        run: |
-          cd /tmp
-          git clone https://chromium.googlesource.com/webm/libvpx
-          cd libvpx
-          ./configure --target=arm64-android-gcc \
-            --prefix=${{ github.workspace }}/build/external/arm64-v8a \
-            --disable-shared --enable-static \
-            --disable-examples --disable-tools --disable-docs \
-            CC="$CC" AR="$AR" RANLIB="$RANLIB" CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS"
+          # x265 的构建目录通常在 build/linux
+          if [ -d x265_src/build/linux ]; then
+          cd x265_src/build/linux
+          SOURCE_PATH=../../source
+          elif [ -d x265_src/build ]; then
+          cd x265_src/build
+          SOURCE_PATH=../source
+          else
+            echo "Cannot find x265 build directory; listing /tmp/x265_src:"; ls -la x265_src; exit 1
+          fi
+
+          cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
+          -DANDROID_ABI=arm64-v8a \
+          -DANDROID_PLATFORM=android-21 \
+          -DENABLE_SHARED=OFF \
+          -DENABLE_CLI=OFF \
+          -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build/external/arm64-v8a \
+          $SOURCE_PATH
+
           make -j$(nproc)
           make install
 
