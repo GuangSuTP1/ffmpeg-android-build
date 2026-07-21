@@ -1,9 +1,9 @@
 name: Build FFmpeg Android (arm64-v8a)
 
-于:
-  推送:
-    分支: [ "master", "main" ]
-  工作流程调度:   # 支持手动触发
+on:
+  push:
+    branches: [ "master", "main" ]
+  workflow_dispatch:   # 支持手动触发
 
 env:
   # Android SDK 相关路径（GitHub Actions 预置）
