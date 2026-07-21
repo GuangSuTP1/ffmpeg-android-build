@@ -37,7 +37,9 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y make cmake pkg-config
+          sudo apt-get install -y make cmake pkg-config python3-pip ninja-build
+          pip3 install --upgrade meson
+          
 
       - name: Make script executable
         run: chmod +x ffmpeg-android-maker.sh
