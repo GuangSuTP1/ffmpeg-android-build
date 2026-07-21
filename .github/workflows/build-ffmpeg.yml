@@ -11,6 +11,7 @@ env:
   ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
   ANDROID_SDK_HOME: /usr/local/lib/android/sdk   # 脚本要求
   ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/25.2.9519653   # 明确指定
+  FFMPEG_EXTERNAL_LIBRARIES: "libmp3lame libx264 libx265 libvpx libopus libvorbis libfdk_aac libfreetype libass libfontconfig libfribidi libsrt"
 
 jobs:
   build:
@@ -31,7 +32,6 @@ jobs:
       - name: Install NDK (r25c)
         run: |
           echo "y" | sdkmanager "ndk;25.2.9519653"
-          # 确认 NDK 路径
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
 
       - name: Install build dependencies
@@ -39,7 +39,168 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y make cmake pkg-config python3-pip ninja-build
           pip3 install --upgrade meson
-          
+
+      # ---------- 以下为新增：编译所有前置库 ----------
+      - name: Create external libraries directory
+        run: |
+          mkdir -p build/external/arm64-v8a/lib
+          mkdir -p build/external/arm64-v8a/include
+
+      - name: Build libmp3lame
+        run: |
+          cd /tmp
+          wget https://downloads.sourceforge.net/project/lame/lame/3.100/lame-3.100.tar.gz
+          tar -xzf lame-3.100.tar.gz
+          cd lame-3.100
+          ./configure --host=aarch64-linux-android \
+            --prefix=${{ github.workspace }}/build/external/arm64-v8a \
+            --disable-shared --enable-static
+          make -j$(nproc)
+          make install
+
+      - name: Build libx264
+        run: |
+          cd /tmp
+          git clone https://code.videolan.org/videolan/x264.git
+          cd x264
+          ./configure --host=aarch64-linux-android \
+            --cross-prefix=aarch64-linux-android- \
+            --sysroot=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/sysroot \
+            --prefix=${{ github.workspace }}/build/external/arm64-v8a \
+            --enable-static --disable-shared \
+            --disable-cli
+          make -j$(nproc)
+          make install
+
+      - name: Build libx265
+        run: |
+          cd /tmp
+          wget https://bitbucket.org/multicoreware/x265_git/downloads/x265_3.5.tar.gz
+          tar -xzf x265_3.5.tar.gz
+          cd x265_3.5/build/linux
+          cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-21 \
+            -DENABLE_SHARED=OFF \
+            -DENABLE_CLI=OFF \
+            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build/external/arm64-v8a \
+            ../../source
+          make -j$(nproc)
+          make install
+
+      - name: Build libvpx
+        run: |
+          cd /tmp
+          git clone https://chromium.googlesource.com/webm/libvpx
+          cd libvpx
+          ./configure --target=arm64-android-gcc \
+            --prefix=${{ github.workspace }}/build/external/arm64-v8a \
+            --disable-shared --enable-static \
+            --disable-examples --disable-tools --disable-docs
+          make -j$(nproc)
+          make install
+
+      - name: Build libopus
+        run: |
+          cd /tmp
+          wget https://archive.mozilla.org/pub/opus/opus-1.4.tar.gz
+          tar -xzf opus-1.4.tar.gz
+          cd opus-1.4
+          ./configure --host=aarch64-linux-android \
+            --prefix=${{ github.workspace }}/build/external/arm64-v8a \
+            --disable-shared --enable-static
+          make -j$(nproc)
+          make install
+
+      - name: Build libvorbis
+        run: |
+          cd /tmp
+          wget https://downloads.xiph.org/releases/vorbis/libvorbis-1.3.7.tar.gz
+          tar -xzf libvorbis-1.3.7.tar.gz
+          cd libvorbis-1.3.7
+          ./configure --host=aarch64-linux-android \
+            --prefix=${{ github.workspace }}/build/external/arm64-v8a \
+            --disable-shared --enable-static
+          make -j$(nproc)
+          make install
+
+      - name: Build libfdk_aac
+        run: |
+          cd /tmp
+          git clone https://github.com/mstorsjo/fdk-aac
+          cd fdk-aac
+          ./autogen.sh
+          ./configure --host=aarch64-linux-android \
+            --prefix=${{ github.workspace }}/build/external/arm64-v8a \
+            --disable-shared --enable-static
+          make -j$(nproc)
+          make install
+
+      - name: Build libfreetype
+        run: |
+          cd /tmp
+          wget https://download.savannah.gnu.org/releases/freetype/freetype-2.13.2.tar.gz
+          tar -xzf freetype-2.13.2.tar.gz
+          cd freetype-2.13.2
+          ./configure --host=aarch64-linux-android \
+            --prefix=${{ github.workspace }}/build/external/arm64-v8a \
+            --disable-shared --enable-static
+          make -j$(nproc)
+          make install
+
+      - name: Build libass
+        run: |
+          cd /tmp
+          wget https://github.com/libass/libass/releases/download/0.17.1/libass-0.17.1.tar.gz
+          tar -xzf libass-0.17.1.tar.gz
+          cd libass-0.17.1
+          ./configure --host=aarch64-linux-android \
+            --prefix=${{ github.workspace }}/build/external/arm64-v8a \
+            --disable-shared --enable-static \
+            --disable-require-system-font-provider
+          make -j$(nproc)
+          make install
+
+      - name: Build libfontconfig
+        run: |
+          cd /tmp
+          wget https://www.freedesktop.org/software/fontconfig/release/fontconfig-2.14.2.tar.gz
+          tar -xzf fontconfig-2.14.2.tar.gz
+          cd fontconfig-2.14.2
+          ./configure --host=aarch64-linux-android \
+            --prefix=${{ github.workspace }}/build/external/arm64-v8a \
+            --disable-shared --enable-static \
+            --disable-docs --disable-tools
+          make -j$(nproc)
+          make install
+
+      - name: Build libfribidi
+        run: |
+          cd /tmp
+          wget https://github.com/fribidi/fribidi/releases/download/v1.0.13/fribidi-1.0.13.tar.gz
+          tar -xzf fribidi-1.0.13.tar.gz
+          cd fribidi-1.0.13
+          ./configure --host=aarch64-linux-android \
+            --prefix=${{ github.workspace }}/build/external/arm64-v8a \
+            --disable-shared --enable-static
+          make -j$(nproc)
+          make install
+
+      - name: Build libsrt
+        run: |
+          cd /tmp
+          git clone https://github.com/Haivision/srt.git
+          cd srt
+          cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-21 \
+            -DENABLE_SHARED=OFF \
+            -DENABLE_STATIC=ON \
+            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/build/external/arm64-v8a \
+            .
+          make -j$(nproc)
+          make install
+      # ---------- 前置库编译结束 ----------
 
       - name: Make script executable
         run: chmod +x ffmpeg-android-maker.sh
@@ -51,4 +212,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ffmpeg-android-arm64
-          path: build
+          path: build/
